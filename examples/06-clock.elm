@@ -1,5 +1,6 @@
-import Html exposing (Html, div, p, text)
+import Html exposing (Html, div, p, text, button)
 import Html.Attributes exposing (style)
+import Html.Events exposing (onClick)
 -- import Svg exposing (..)
 -- import Svg.Attributes exposing (..)
 import Css exposing (..)
@@ -26,6 +27,7 @@ type alias Model =
   { time: Time
   , x: Int
   , y: Int
+  , onoff: Bool
   }
 
 init : (Model, Cmd Msg)
@@ -34,6 +36,7 @@ init =
     { time = 0
     , x = 0
     , y = 0
+    , onoff = False
     }
     , Cmd.none
    )
@@ -46,6 +49,7 @@ init =
 type Msg
   = Tick Time
   | Position Int Int
+  | OnOff
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -55,6 +59,8 @@ update msg model =
       ( { model | time = newTime }, Cmd.none)
     Position x y ->
       ( { model | x = x, y = y }, Cmd.none)
+    OnOff ->
+      ( { model | onoff = not model.onoff }, Cmd.none)
 
 
 
@@ -90,6 +96,7 @@ view model =
       , p [] [ text <| "Model: " ++ toString model ]
       , p [] [ text <| "rel pos: " ++ relpos model ]
       , p [] [ text <| "inSeconds: " ++ (toString <| Basics.round <| Time.inSeconds model.time) ]
+      , button [ onClick OnOff ] [ text ("Turn me " ++ btnstate model) ]
     ]
 
 
@@ -106,3 +113,11 @@ relpos model =
       }
   in
     toString rp
+
+
+btnstate : Model -> String
+btnstate model =
+  if model.onoff then
+    "off"
+  else
+    "on"
