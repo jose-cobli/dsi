@@ -80,6 +80,7 @@ type alias Model =
   , tripHistory: List Float
   , x: Int
   , y: Int
+  , nextStepsOpacity: String
   }
 
 init : (Model, Cmd Msg)
@@ -91,6 +92,7 @@ init =
     , tripHistory = []
     , x = 0
     , y = 0
+    , nextStepsOpacity = "0"
     }
   , Cmd.none
   )
@@ -162,6 +164,13 @@ updateSkillFromSlider model x y =
   if x >= slider.x0 && x <= slider.x1
   && y >= slider.y0 && y <= slider.y1 then
     { model | x = x, y = y, driverSkill = 100.0 - (x / (toFloat slider.x1) * 100) }
+  else if y > slider.y1 then
+    { model | nextStepsOpacity =
+    if model.nextStepsOpacity == "1" then
+      "0"
+    else
+      "1"
+    }
   else
     model
 
@@ -264,7 +273,12 @@ view model =
         ]
       ] (formatTrips model.tripHistory))
       [ h2 [] [ text <| "Driver Skill " ++ (toString (100.0 - model.driverSkill)) ]
-      , div [ style [ ("position", "fixed"), ("top", toString (slider.y0 - 170) ++ "px") ] ]
+      , div
+        [ style
+          [ ("position", "fixed")
+          , ("top", toString (slider.y0 - 170) ++ "px")
+          ]
+        ]
         [ h2 [] [ text "As variáveis da fórmula do Driver Score" ]
         , ul []
           [ li [] [ text "idf_e é o peso do evento"]
@@ -274,7 +288,7 @@ view model =
           , li [] [ text "alpha é uma constante de ajuste da média"]
           ]
         ]
-      , div [ style [ ("position", "fixed"), ("top", toString slider.y1 ++ "px") ] ]
+      , div [ style [ ("position", "fixed"), ("top", toString slider.y1 ++ "px"), ("opacity", model.nextStepsOpacity) ] ]
         [ h2 [] [ text "Próximos passos" ]
         , ul []
           [ li [] [ text "Mostrar quantidades de eventos por trip (e quais ocorreram)"]
