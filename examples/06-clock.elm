@@ -117,6 +117,16 @@ riskEvents =
   ]
 
 gaussStdDev = 0.1
+
+slider =
+  { x0 = 0
+  , y0 = 500
+  , x1 = 700
+  , y1 = 680
+  }
+
+
+
 -- UPDATE
 
 
@@ -130,6 +140,7 @@ type Msg
   | NewRE Float
   | IncrementScore
   | DecrementScore
+  | Position Int Int
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -153,6 +164,8 @@ update msg model =
       ( { model | score = driverScore model.score [lowAcc] }, Cmd.none )
     DecrementScore ->
       ( { model | score = driverScore model.score [lowAcc, highAcc, highAcc, highAcc] }, Cmd.none )
+    Position x y ->
+      ( updateSkillFromSlider model x y, Cmd.none )
 
 updateSkill : Model -> Float -> Float
 updateSkill model i =
@@ -165,6 +178,13 @@ updateSkill model i =
       100
     else
       updatedDriverSkill
+
+updateSkillFromSlider model x y =
+  if x >= slider.x0 && x <= slider.x1
+  && y >= slider.y0 && y <= slider.y1 then
+    { model | x = x, y = y, driverSkill = x / (toFloat slider.x1) * 100 }
+  else
+    model
 
 getRE : Float -> String
 getRE newFloat =
@@ -194,6 +214,7 @@ subscriptions model =
   Sub.batch
     [ Time.every second Tick
     , Time.every second Rand
+    , Mouse.moves (\{x, y} -> Position x y)
     ]
 
 
@@ -234,16 +255,31 @@ view model =
         [ text <| "Risk Event: " ++ (toString model.riskEvent)
         , button [ onClick RandRE ] [ text "change"]
         ]
-      , svg [ viewBox "0 0 100% 30%", width "100%" ]
-        [ defs []
-          [ linearGradient [ id "grad1", x1 "0%", y1 "0%", x2 "100%", y2 "0%" ]
-            [ stop [ offset "0%", Svg.Attributes.style "stop-color:rgb(255,0,0,0.3);stop-opacity:1" ] []
-            , stop [ offset "48%", Svg.Attributes.style "stop-color:rgb(255,255,255,0.3);stop-opacity:1" ] []
-            , stop [ offset "52%", Svg.Attributes.style "stop-color:rgb(255,255,255,0.3);stop-opacity:1" ] []
-            , stop [ offset "100%", Svg.Attributes.style "stop-color:rgb(0,255,0,0.3);stop-opacity:1" ] []
-            ]
+      , div
+        [ style
+          [ ("position", "fixed")
+          , ("top", toString slider.y0 ++ "px")
+          , ("width", toString slider.x1 ++ "px")
+          , ("height", toString (slider.y1 - slider.y0) ++ "px")
           ]
-        , rect [ x "0", y "0", width "100%", height "100%", fill "url(#grad1)" ] []
-        , line [ x1 "50%", y1 "2%", x2 "50%", y2 "98%", stroke "rgba(0,0,0,0.3)" ] []
+        ]
+        [ svg [ viewBox "0 0 100% 30%", width "100%", height "100%" ]
+          [ defs []
+            [ linearGradient [ id "grad1", x1 "0%", y1 "0%", x2 "100%", y2 "0%" ]
+              [ stop [ offset "0%", Svg.Attributes.style "stop-color:rgb(255,0,0,0.3);stop-opacity:1" ] []
+              , stop [ offset "48%", Svg.Attributes.style "stop-color:rgb(255,255,255,0.3);stop-opacity:1" ] []
+              , stop [ offset "52%", Svg.Attributes.style "stop-color:rgb(255,255,255,0.3);stop-opacity:1" ] []
+              , stop [ offset "100%", Svg.Attributes.style "stop-color:rgb(0,255,0,0.3);stop-opacity:1" ] []
+              ]
+            ]
+          , rect [ x "0", y "0", width "100%", height "100%", fill "url(#grad1)" ] []
+          , line [ x1 "50%", y1 "2%", x2 "50%", y2 "98%", stroke "rgba(0,0,0,0.3)" ] []
+          , maybeLine model
+          ]
         ]
       ]
+
+
+maybeLine : Model -> Svg.Svg Msg
+maybeLine model =
+  line [ x1 <| toString model.x, y1 "2%", x2 <| toString model.x, y2 "98%", stroke "rgba(0,0,0,0.3)" ] []
