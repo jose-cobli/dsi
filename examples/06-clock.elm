@@ -33,6 +33,7 @@ type alias Model =
   , driverSkill: Float
   , randValue: Float
   , riskEvent: String
+  , randGauss: Float
   }
 
 init : (Model, Cmd Msg)
@@ -42,9 +43,10 @@ init =
     , x = 0
     , y = 0
     , onoff = False
-    , driverSkill = 50.0
+    , driverSkill = 10.0
     , randValue = 0.0
     , riskEvent = "Nothing"
+    , randGauss = -1.0
     }
   , Cmd.none
   )
@@ -58,6 +60,8 @@ riskEvents =
   , (0.4157, "fastAcc45")
   , (1.0000, "fastAcc55")
   ]
+
+gaussStdDev = 0.1
 -- UPDATE
 
 
@@ -91,9 +95,9 @@ update msg model =
     NewValue newFloat ->
       ( { model | randValue = newFloat }, Cmd.none )
     RandRE ->
-      ( model, Random.generate NewRE (normal (model.driverSkill / 100.0) 0.2) )
+      ( model, Random.generate NewRE (normal (model.driverSkill / 100.0) gaussStdDev) )
     NewRE newFloat ->
-      ( { model | riskEvent = getRE newFloat }, Cmd.none )
+      ( { model | riskEvent = getRE newFloat, randGauss = newFloat }, Cmd.none )
 
 updateSkill : Model -> Float -> Float
 updateSkill model i =
@@ -110,15 +114,23 @@ updateSkill model i =
 getRE : Float -> String
 getRE newFloat =
   let
-    re = List.head riskEvents
+    re = List.foldr (closest newFloat) (0.1040, "hardBreak35") riskEvents
   in
-    case re of
-      Just some ->
-        Tuple.second some
-      Nothing ->
-        "Nothing"
+    Tuple.second re
 
-        
+closest newFloat sofar next =
+  let
+      minDistSofar = abs <| newFloat - (Tuple.first sofar)
+      distNext = abs <| newFloat - (Tuple.first next)
+  in
+      if minDistSofar < distNext then
+        sofar
+      else
+        next
+
+
+
+
 -- SUBSCRIPTIONS
 
 
@@ -159,8 +171,9 @@ view model =
         , button [ onClick DecrementSkill ] [ text "-"]
       ]
       , div []
-        [ p [] [ text <| "Random " ++ (toString model.randValue) ]
-      ]
+        [ p [] [ text <| "Random: " ++ (toString model.randValue) ]
+        , p [] [ text <| "Random Gauss: " ++ (toString model.randGauss) ]
+        ]
       , div []
         [ text <| "Risk Event: " ++ (toString model.riskEvent)
         , button [ onClick RandRE ] [ text "change"]
