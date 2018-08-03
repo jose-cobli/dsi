@@ -230,7 +230,10 @@ view model =
         , ("margin", "50px")
         ]
   in
-    div []
+    div [
+      style
+      [("background", "url(formula.png) no-repeat center center" )]
+    ]
     (List.append (List.append
       [ h1 [] [ text <| "Driver Score " ++ (toString <| round model.score) ]
       , div
