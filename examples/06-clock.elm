@@ -1,8 +1,8 @@
 import Html exposing (Html, div, p, text, button)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
--- import Svg exposing (..)
--- import Svg.Attributes exposing (..)
+import Svg exposing (svg, circle, line, rect, defs, linearGradient, stop)
+import Svg.Attributes exposing (viewBox, height, width, cx, cy, r, fill, id, x, y, x1, x2, y1, y2, stroke, offset)
 -- import Css exposing (..)
 import Time exposing (Time, second)
 import Mouse
@@ -11,6 +11,9 @@ import Random
 import Random.Float exposing (normal)
 import Debug exposing (log)
 
+      -- , svg [ viewBox "0 0 100 100", width "300px" ]
+      --   [ circle [ cx "50", cy "50", r "45", fill "#0B79CE" ] []
+      --   , line [ x1 "50", y1 "50", x2 "90", y2 "90", stroke "#023963" ] []
 
 main : Program Never Model Msg
 main =
@@ -84,6 +87,8 @@ type alias Model =
   , riskEvent: String
   , randGauss: Float
   , score: Float
+  , x: Int
+  , y: Int
   }
 
 init : (Model, Cmd Msg)
@@ -95,6 +100,8 @@ init =
     , riskEvent = "Nothing"
     , score = 50.0
     , randGauss = -1.0
+    , x = 0
+    , y = 0
     }
   , Cmd.none
   )
@@ -226,5 +233,17 @@ view model =
       , div []
         [ text <| "Risk Event: " ++ (toString model.riskEvent)
         , button [ onClick RandRE ] [ text "change"]
+        ]
+      , svg [ viewBox "0 0 100% 30%", width "100%" ]
+        [ defs []
+          [ linearGradient [ id "grad1", x1 "0%", y1 "0%", x2 "100%", y2 "0%" ]
+            [ stop [ offset "0%", Svg.Attributes.style "stop-color:rgb(255,0,0,0.3);stop-opacity:1" ] []
+            , stop [ offset "48%", Svg.Attributes.style "stop-color:rgb(255,255,255,0.3);stop-opacity:1" ] []
+            , stop [ offset "52%", Svg.Attributes.style "stop-color:rgb(255,255,255,0.3);stop-opacity:1" ] []
+            , stop [ offset "100%", Svg.Attributes.style "stop-color:rgb(0,255,0,0.3);stop-opacity:1" ] []
+            ]
+          ]
+        , rect [ x "0", y "0", width "100%", height "100%", fill "url(#grad1)" ] []
+        , line [ x1 "50%", y1 "2%", x2 "50%", y2 "98%", stroke "rgba(0,0,0,0.3)" ] []
+        ]
       ]
-    ]
