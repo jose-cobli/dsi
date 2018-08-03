@@ -28,6 +28,7 @@ type alias Model =
   , x: Int
   , y: Int
   , onoff: Bool
+  , driverSkill: Int
   }
 
 init : (Model, Cmd Msg)
@@ -37,6 +38,7 @@ init =
     , x = 0
     , y = 0
     , onoff = False
+    , driverSkill = 50
     }
     , Cmd.none
    )
@@ -50,6 +52,8 @@ type Msg
   = Tick Time
   | Position Int Int
   | OnOff
+  | IncrementSkill
+  | DecrementSkill
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -61,8 +65,22 @@ update msg model =
       ( { model | x = x, y = y }, Cmd.none)
     OnOff ->
       ( { model | onoff = not model.onoff }, Cmd.none)
+    DecrementSkill ->
+      ( { model | driverSkill = updateSkill model -1 }, Cmd.none )
+    IncrementSkill ->
+      ( { model | driverSkill = updateSkill model 1 }, Cmd.none )
 
-
+updateSkill : Model -> Int -> Int
+updateSkill model i =
+  let
+    updatedDriverSkill = model.driverSkill + i
+  in
+    if updatedDriverSkill < 0 then
+      0
+    else if updatedDriverSkill > 100 then
+      100
+    else
+      updatedDriverSkill
 
 -- SUBSCRIPTIONS
 
@@ -97,6 +115,11 @@ view model =
       , p [] [ text <| "rel pos: " ++ relpos model ]
       , p [] [ text <| "inSeconds: " ++ (toString <| Basics.round <| Time.inSeconds model.time) ]
       , button [ onClick OnOff ] [ text ("Turn me " ++ btnstate model) ]
+      , div []
+        [ text <| "Driver Skill " ++ (toString model.driverSkill)
+        , button [ onClick IncrementSkill ] [ text "+"]
+        , button [ onClick DecrementSkill ] [ text "-"]
+      ]
     ]
 
 
