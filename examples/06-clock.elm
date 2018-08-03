@@ -1,4 +1,4 @@
-import Html exposing (Html, div, p, text, button)
+import Html exposing (Html, div, p, text, button, h1, h2)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick, onMouseDown)
 import Svg exposing (svg, circle, line, rect, defs, linearGradient, stop)
@@ -161,7 +161,7 @@ updateSkill model i =
 updateSkillFromSlider model x y =
   if x >= slider.x0 && x <= slider.x1
   && y >= slider.y0 && y <= slider.y1 then
-    { model | x = x, y = y, driverSkill = x / (toFloat slider.x1) * 100 }
+    { model | x = x, y = y, driverSkill = 100.0 - (x / (toFloat slider.x1) * 100) }
   else
     model
 
@@ -231,15 +231,8 @@ view model =
         ]
   in
     div []
-    (List.append
-      [ p [] [ text <| "Model: " ++ toString model ]
-      , div []
-        [ text <| "Driver Skill " ++ (toString model.driverSkill)
-        , button [ onClick IncrementSkill ] [ text "+"]
-        , button [ onClick DecrementSkill ] [ text "-"]
-        ]
-      , div []
-        [ text <| "Driver Score " ++ (toString model.score) ]
+    (List.append (List.append
+      [ h1 [] [ text <| "Driver Score " ++ (toString <| round model.score) ]
       , div
         [ style
             [ ("position", "fixed")
@@ -267,6 +260,7 @@ view model =
           ]
         ]
       ] (formatTrips model.tripHistory))
+      [ h2 [] [ text <| "Driver Skill " ++ (toString (100.0 - model.driverSkill)) ] ])
 
 
 maybeLine : Model -> Svg.Svg Msg
