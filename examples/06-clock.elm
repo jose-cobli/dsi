@@ -46,9 +46,9 @@ updateDriverScore oldScore newScore tripDistInKm movingAvgCoeff maxAlpha =
   let
     alpha = Basics.min (movingAvgCoeff * (logBase e (tripDistInKm + e))) maxAlpha
   in
-    log (String.concat ["alpha ",  (toString alpha)])
-    log (String.concat ["dist log ",  (toString (logBase e (tripDistInKm + e)))])
-    log (String.concat ["new ",  (toString ((1 - alpha) * oldScore + alpha * newScore))])
+    -- log (String.concat ["alpha ",  (toString alpha)])
+    -- log (String.concat ["dist log ",  (toString (logBase e (tripDistInKm + e)))])
+    -- log (String.concat ["new ",  (toString ((1 - alpha) * oldScore + alpha * newScore))])
     (1 - alpha) * oldScore + alpha * newScore
 
 
@@ -57,6 +57,7 @@ updateDriverScore oldScore newScore tripDistInKm movingAvgCoeff maxAlpha =
 distanceAdjustmentCoefficient = 0.0023
 movingAverageCoefficient = 0.015
 maximumAverageCoefficient = 0.2
+maxNumberOfEvents = 30
 
 baseDuration = 1800 -- 30min
 baseKm = 50 -- 50km
@@ -66,35 +67,27 @@ driverScore oldScore riskEvents =
   let
     tripS = tripScore riskEvents baseDuration distanceAdjustmentCoefficient
   in
-    log (String.concat ["ts ", (toString tripS)])
+    -- log (String.concat ["ts ", (toString tripS)])
     updateDriverScore oldScore tripS baseKm movingAverageCoefficient maximumAverageCoefficient
 
-
-highAcc = RiskEvent "HardAcc" 1.0
-midAcc = RiskEvent "MidAcc" 0.415
-lowAcc = RiskEvent "LowAcc" 0.125
 
 -- MODEL
 
 
 type alias Model =
-  { time: Time
-  , driverSkill: Float
-  , randValue: Float
-  , riskEvent: String
-  , randGauss: Float
+  { driverSkill: Float
+  , riskEvents: List RiskEvent
   , score: Float
+  , tripHistory: ListFloat
   }
 
 init : (Model, Cmd Msg)
 init =
   (
-    { time = 0
-    , driverSkill = 50.0
-    , randValue = 0.0
-    , riskEvent = "Nothing"
+    { driverSkill = 50.0
+    , riskEvents = []
     , score = 50.0
-    , randGauss = -1.0
+    , tripHistory = []
     }
   , Cmd.none
   )
@@ -112,40 +105,30 @@ riskEvents =
 gaussStdDev = 0.1
 -- UPDATE
 
-
+type alias ListFloat = List Float
+type alias ListRE = List RiskEvent
 type Msg
-  = Tick Time
-  | IncrementSkill
+  = IncrementSkill
   | DecrementSkill
-  | Rand Time
-  | NewValue Float
-  | RandRE
-  | NewRE Float
-  | IncrementScore
-  | DecrementScore
-
+  | RandRE Time
+  | NewRiskEventList ListFloat
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    Tick newTime ->
-      ( { model | time = newTime }, Cmd.none)
     DecrementSkill ->
       ( { model | driverSkill = updateSkill model -1 }, Cmd.none )
     IncrementSkill ->
       ( { model | driverSkill = updateSkill model 1 }, Cmd.none )
-    Rand newTime ->
-      ( model, Random.generate NewValue (Random.float 0.0 1.0) )
-    NewValue newFloat ->
-      ( { model | randValue = newFloat }, Cmd.none )
-    RandRE ->
-      ( model, Random.generate NewRE (normal (model.driverSkill / 100.0) gaussStdDev) )
-    NewRE newFloat ->
-      ( { model | riskEvent = getRE newFloat, randGauss = newFloat }, Cmd.none )
-    IncrementScore ->
-      ( { model | score = driverScore model.score [lowAcc] }, Cmd.none )
-    DecrementScore ->
-      ( { model | score = driverScore model.score [lowAcc, highAcc, highAcc, highAcc] }, Cmd.none )
+    RandRE newTime ->
+      ( model, Random.generate NewRiskEventList (Random.list maxNumberOfEvents (normal (model.driverSkill / 100.0) gaussStdDev)) )
+    NewRiskEventList newFloatList ->
+      let
+        re = riskEventsFromFloatList newFloatList model.driverSkill
+        tripS = tripScore re baseDuration distanceAdjustmentCoefficient
+      in
+        ( { model | score = driverScore model.score re,  riskEvents = re, tripHistory = List.take 10 (tripS :: model.tripHistory)}, Cmd.none )
+      
 
 updateSkill : Model -> Float -> Float
 updateSkill model i =
@@ -159,12 +142,12 @@ updateSkill model i =
     else
       updatedDriverSkill
 
-getRE : Float -> String
+getRE : Float -> RiskEvent
 getRE newFloat =
   let
     re = List.foldr (closest newFloat) (0.1040, "hardBreak35") riskEvents
   in
-    Tuple.second re
+    RiskEvent (Tuple.second re) (Tuple.first re)
 
 closest newFloat sofar next =
   let
@@ -175,9 +158,21 @@ closest newFloat sofar next =
         sofar
       else
         next
+        
+riskEventsFromFloatList: List Float -> Float -> List RiskEvent
+riskEventsFromFloatList randomFloats skill =
+  let
+    numberOfEvents = round ( (skill / 100) * maxNumberOfEvents)
+  in
+    List.take numberOfEvents (List.map (\r -> getRE r) randomFloats)
+    
 
-
-
+tripToHtml trip =
+  (
+    div []
+    [ text <| "Trip Score: " ++ (toString trip) ]
+  )
+formatTrips listOfTrips = List.map tripToHtml listOfTrips
 
 -- SUBSCRIPTIONS
 
@@ -185,11 +180,7 @@ closest newFloat sofar next =
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
-    [ Time.every second Tick
-    , Time.every second Rand
-    ]
-
-
+    [ Time.every second RandRE ]
 
 -- VIEW
 
@@ -207,24 +198,16 @@ view model =
         ]
   in
     div []
+    (List.append
       [ p [] [ text <| "Model: " ++ toString model ]
-      , p [] [ text <| "inSeconds: " ++ (toString <| Basics.round <| Time.inSeconds model.time) ]
       , div []
         [ text <| "Driver Skill " ++ (toString model.driverSkill)
         , button [ onClick IncrementSkill ] [ text "+"]
         , button [ onClick DecrementSkill ] [ text "-"]
-      ]
-      , div []
-        [ text <| "Driver Score " ++ (toString model.score)
-        , button [ onClick IncrementScore ] [ text "better"]
-        , button [ onClick DecrementScore ] [ text "worse"]
         ]
       , div []
-        [ p [] [ text <| "Random " ++ (toString model.randValue) ]
-        , p [] [ text <| "Random Gauss: " ++ (toString model.randGauss) ]
-        ]
+        [ text <| "Driver Score " ++ (toString model.score) ]
       , div []
-        [ text <| "Risk Event: " ++ (toString model.riskEvent)
-        , button [ onClick RandRE ] [ text "change"]
+        [ text <| "Number of Risk Event: " ++ (toString (List.length model.riskEvents)) ]
       ]
-    ]
+      (formatTrips model.tripHistory))
