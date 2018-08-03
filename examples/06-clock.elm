@@ -1,4 +1,4 @@
-import Html exposing (Html, div, p, text, button, h1, h2)
+import Html exposing (Html, div, p, text, button, h1, h2, ul, li)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick, onMouseDown)
 import Svg exposing (svg, circle, line, rect, defs, linearGradient, stop)
@@ -260,7 +260,15 @@ view model =
           ]
         ]
       ] (formatTrips model.tripHistory))
-      [ h2 [] [ text <| "Driver Skill " ++ (toString (100.0 - model.driverSkill)) ] ])
+      [ h2 [] [ text <| "Driver Skill " ++ (toString (100.0 - model.driverSkill)) ]
+      , div [ style [ ("position", "fixed"), ("top", toString slider.y1 ++ "px") ] ]
+        [ h2 [] [ text "Próximos passos" ]
+        , ul []
+          [ li [] [ text "Mostrar quantidades de eventos por trip (e quais ocorreram)"]
+          , li [] [ text "Quanto tempo eu demoro até chegar em uma nota boa?"]
+          ]
+        ]
+      ])
 
 
 maybeLine : Model -> Svg.Svg Msg
