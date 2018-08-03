@@ -57,7 +57,7 @@ type Msg
   | OnOff
   | IncrementSkill
   | DecrementSkill
-  | Rand
+  | Rand Time
   | NewValue Float
 
 
@@ -74,7 +74,7 @@ update msg model =
       ( { model | driverSkill = updateSkill model -1 }, Cmd.none )
     IncrementSkill ->
       ( { model | driverSkill = updateSkill model 1 }, Cmd.none )
-    Rand ->
+    Rand newTime ->
       ( model, Random.generate NewValue (Random.float 0.0 1.0) )
     NewValue newFloat ->
       ( { model | randValue = newFloat }, Cmd.none )
@@ -98,6 +98,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
     [ Time.every second Tick
+    , Time.every second Rand
     , Mouse.moves (\{x, y} -> Position x y)
     ]
 
@@ -131,7 +132,6 @@ view model =
       ]
       , div []
         [ p [] [ text <| "Random " ++ (toString model.randValue) ]
-        , button [ onClick Rand ] [ text "new"]
       ]
     ]
 
