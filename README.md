@@ -20,8 +20,8 @@ To learn more about this, read the [the official Elm guide][guide] and check out
 After you [install Elm](http://guide.elm-lang.org/get_started.html), run the following commands in your terminal to download this repo and start a server that compiles Elm for you:
 
 ```bash
-git clone https://github.com/evancz/elm-architecture-tutorial.git
-cd elm-architecture-tutorial
+git clone https://github.com/jose-cobli/dsi.git
+cd dsi
 elm-reactor
 ```
 
