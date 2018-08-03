@@ -1,8 +1,8 @@
 import Html exposing (Html, div, p, text, button)
 import Html.Attributes exposing (style)
-import Html.Events exposing (onClick)
--- import Svg exposing (..)
--- import Svg.Attributes exposing (..)
+import Html.Events exposing (onClick, onMouseDown)
+import Svg exposing (svg, circle, line, rect, defs, linearGradient, stop)
+import Svg.Attributes exposing (viewBox, height, width, cx, cy, r, fill, id, x, y, x1, x2, y1, y2, stroke, offset)
 -- import Css exposing (..)
 import Time exposing (Time, second)
 import Mouse
@@ -10,7 +10,6 @@ import Mouse
 import Random
 import Random.Float exposing (normal)
 import Debug exposing (log)
-
 
 main : Program Never Model Msg
 main =
@@ -78,7 +77,9 @@ type alias Model =
   { driverSkill: Float
   , riskEvents: List RiskEvent
   , score: Float
-  , tripHistory: ListFloat
+  , tripHistory: List Float
+  , x: Int
+  , y: Int
   }
 
 init : (Model, Cmd Msg)
@@ -88,6 +89,8 @@ init =
     , riskEvents = []
     , score = 50.0
     , tripHistory = []
+    , x = 0
+    , y = 0
     }
   , Cmd.none
   )
@@ -103,6 +106,16 @@ riskEvents =
   ]
 
 gaussStdDev = 0.1
+
+slider =
+  { x0 = 0
+  , y0 = 500
+  , x1 = 800
+  , y1 = 600
+  }
+
+
+
 -- UPDATE
 
 type alias ListFloat = List Float
@@ -112,6 +125,7 @@ type Msg
   | DecrementSkill
   | RandRE Time
   | NewRiskEventList ListFloat
+  | Position Int Int
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -128,6 +142,8 @@ update msg model =
         tripS = tripScore re baseDuration distanceAdjustmentCoefficient
       in
         ( { model | score = driverScore model.score re,  riskEvents = re, tripHistory = List.take 10 (tripS :: model.tripHistory)}, Cmd.none )
+    Position x y ->
+      ( updateSkillFromSlider model x y, Cmd.none )
       
 
 updateSkill : Model -> Float -> Float
@@ -142,6 +158,13 @@ updateSkill model i =
     else
       updatedDriverSkill
 
+updateSkillFromSlider model x y =
+  if x >= slider.x0 && x <= slider.x1
+  && y >= slider.y0 && y <= slider.y1 then
+    { model | x = x, y = y, driverSkill = x / (toFloat slider.x1) * 100 }
+  else
+    model
+
 getRE : Float -> RiskEvent
 getRE newFloat =
   let
@@ -149,10 +172,16 @@ getRE newFloat =
   in
     RiskEvent (Tuple.second re) (Tuple.first re)
 
+
 closest newFloat sofar next =
   let
-      minDistSofar = abs <| newFloat - (Tuple.first sofar)
-      distNext = abs <| newFloat - (Tuple.first next)
+      minDistSofar =
+        newFloat - (Tuple.first sofar)
+        |> abs
+
+      distNext =
+        newFloat - (Tuple.first next)
+        |> abs
   in
       if minDistSofar < distNext then
         sofar
@@ -180,7 +209,11 @@ formatTrips listOfTrips = List.map tripToHtml listOfTrips
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
-    [ Time.every second RandRE ]
+    [ Time.every second RandRE
+    , Mouse.clicks (\{x, y} -> Position x y)
+    ]
+
+
 
 -- VIEW
 
@@ -207,7 +240,35 @@ view model =
         ]
       , div []
         [ text <| "Driver Score " ++ (toString model.score) ]
-      , div []
-        [ text <| "Number of Risk Event: " ++ (toString (List.length model.riskEvents)) ]
-      ]
-      (formatTrips model.tripHistory))
+      , div
+        [ style
+            [ ("position", "fixed")
+            , ("top", toString slider.y0 ++ "px")
+            , ("width", toString slider.x1 ++ "px")
+            , ("height", toString (slider.y1 - slider.y0) ++ "px")
+            ]
+        ]
+        [ svg
+          [ viewBox "0 0 100% 30%"
+          , width "100%"
+          , height "100%"
+          ]
+          [ defs []
+            [ linearGradient [ id "grad1", x1 "0%", y1 "0%", x2 "100%", y2 "0%" ]
+              [ stop [ offset "0%", Svg.Attributes.style "stop-color:rgb(255,0,0,0.3);stop-opacity:1" ] []
+              , stop [ offset "48%", Svg.Attributes.style "stop-color:rgb(255,255,255,0.3);stop-opacity:1" ] []
+              , stop [ offset "52%", Svg.Attributes.style "stop-color:rgb(255,255,255,0.3);stop-opacity:1" ] []
+              , stop [ offset "100%", Svg.Attributes.style "stop-color:rgb(0,255,0,0.3);stop-opacity:1" ] []
+              ]
+            ]
+          , rect [ x "0", y "0", width "100%", height "100%", fill "url(#grad1)" ] []
+          , line [ x1 "50%", y1 "2%", x2 "50%", y2 "98%", stroke "rgba(0,0,0,0.3)" ] []
+          , maybeLine model
+          ]
+        ]
+      ] (formatTrips model.tripHistory))
+
+
+maybeLine : Model -> Svg.Svg Msg
+maybeLine model =
+  line [ x1 <| toString model.x, y1 "2%", x2 <| toString model.x, y2 "98%", stroke "rgba(0,0,0,0.7)" ] []
