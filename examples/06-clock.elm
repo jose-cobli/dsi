@@ -1,6 +1,6 @@
 import Html exposing (Html, div, p, text, button)
 import Html.Attributes exposing (style)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onMouseDown)
 import Svg exposing (svg, circle, line, rect, defs, linearGradient, stop)
 import Svg.Attributes exposing (viewBox, height, width, cx, cy, r, fill, id, x, y, x1, x2, y1, y2, stroke, offset)
 -- import Css exposing (..)
@@ -89,6 +89,7 @@ type alias Model =
   , score: Float
   , x: Int
   , y: Int
+  , sliderCanMove: Bool
   }
 
 init : (Model, Cmd Msg)
@@ -102,6 +103,7 @@ init =
     , randGauss = -1.0
     , x = 0
     , y = 0
+    , sliderCanMove = True
     }
   , Cmd.none
   )
@@ -121,8 +123,8 @@ gaussStdDev = 0.1
 slider =
   { x0 = 0
   , y0 = 500
-  , x1 = 700
-  , y1 = 680
+  , x1 = 800
+  , y1 = 600
   }
 
 
@@ -141,6 +143,7 @@ type Msg
   | IncrementScore
   | DecrementScore
   | Position Int Int
+  | ToggleSlider
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -166,6 +169,9 @@ update msg model =
       ( { model | score = driverScore model.score [lowAcc, highAcc, highAcc, highAcc] }, Cmd.none )
     Position x y ->
       ( updateSkillFromSlider model x y, Cmd.none )
+    ToggleSlider ->
+      ( { model | sliderCanMove = not model.sliderCanMove }, Cmd.none )
+
 
 updateSkill : Model -> Float -> Float
 updateSkill model i =
@@ -179,12 +185,15 @@ updateSkill model i =
     else
       updatedDriverSkill
 
+
 updateSkillFromSlider model x y =
-  if x >= slider.x0 && x <= slider.x1
+  if model.sliderCanMove
+  && x >= slider.x0 && x <= slider.x1
   && y >= slider.y0 && y <= slider.y1 then
     { model | x = x, y = y, driverSkill = x / (toFloat slider.x1) * 100 }
   else
     model
+
 
 getRE : Float -> String
 getRE newFloat =
@@ -192,6 +201,7 @@ getRE newFloat =
     re = List.foldr (closest newFloat) (0.1040, "hardBreak35") riskEvents
   in
     Tuple.second re
+
 
 closest newFloat sofar next =
   let
@@ -257,13 +267,19 @@ view model =
         ]
       , div
         [ style
-          [ ("position", "fixed")
-          , ("top", toString slider.y0 ++ "px")
-          , ("width", toString slider.x1 ++ "px")
-          , ("height", toString (slider.y1 - slider.y0) ++ "px")
-          ]
+            [ ("position", "fixed")
+            , ("top", toString slider.y0 ++ "px")
+            , ("width", toString slider.x1 ++ "px")
+            , ("height", toString (slider.y1 - slider.y0) ++ "px")
+            ]
         ]
-        [ svg [ viewBox "0 0 100% 30%", width "100%", height "100%" ]
+        [ p [] [ text <| toString model.sliderCanMove ]
+        , svg
+          [ viewBox "0 0 100% 30%"
+          , width "100%"
+          , height "100%"
+          , onClick ToggleSlider
+          ]
           [ defs []
             [ linearGradient [ id "grad1", x1 "0%", y1 "0%", x2 "100%", y2 "0%" ]
               [ stop [ offset "0%", Svg.Attributes.style "stop-color:rgb(255,0,0,0.3);stop-opacity:1" ] []
@@ -282,4 +298,4 @@ view model =
 
 maybeLine : Model -> Svg.Svg Msg
 maybeLine model =
-  line [ x1 <| toString model.x, y1 "2%", x2 <| toString model.x, y2 "98%", stroke "rgba(0,0,0,0.3)" ] []
+  line [ x1 <| toString model.x, y1 "2%", x2 <| toString model.x, y2 "98%", stroke "rgba(0,0,0,0.7)" ] []
