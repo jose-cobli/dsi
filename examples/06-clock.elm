@@ -8,6 +8,7 @@ import Time exposing (Time, second)
 import Mouse
 -- import Keyboard
 import Random
+import Random.Float exposing (normal)
 
 
 main : Program Never Model Msg
@@ -29,8 +30,9 @@ type alias Model =
   , x: Int
   , y: Int
   , onoff: Bool
-  , driverSkill: Int
+  , driverSkill: Float
   , randValue: Float
+  , riskEvent: String
   }
 
 init : (Model, Cmd Msg)
@@ -40,14 +42,22 @@ init =
     , x = 0
     , y = 0
     , onoff = False
-    , driverSkill = 50
+    , driverSkill = 50.0
     , randValue = 0.0
+    , riskEvent = "Nothing"
     }
-    , Cmd.none
-   )
+  , Cmd.none
+  )
 
-
-
+riskEvents =
+  [ (0.1040, "hardBreak35")
+  , (0.1250, "fastAcc35")
+  , (0.2023, "hardBreak45")
+  , (0.2665, "speedyTurn")
+  , (0.4050, "hardBreak55")
+  , (0.4157, "fastAcc45")
+  , (1.0000, "fastAcc55")
+  ]
 -- UPDATE
 
 
@@ -59,6 +69,8 @@ type Msg
   | DecrementSkill
   | Rand Time
   | NewValue Float
+  | RandRE
+  | NewRE Float
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -78,8 +90,12 @@ update msg model =
       ( model, Random.generate NewValue (Random.float 0.0 1.0) )
     NewValue newFloat ->
       ( { model | randValue = newFloat }, Cmd.none )
+    RandRE ->
+      ( model, Random.generate NewRE (normal (model.driverSkill / 100.0) 0.2) )
+    NewRE newFloat ->
+      ( { model | riskEvent = getRE newFloat }, Cmd.none )
 
-updateSkill : Model -> Int -> Int
+updateSkill : Model -> Float -> Float
 updateSkill model i =
   let
     updatedDriverSkill = model.driverSkill + i
@@ -91,6 +107,18 @@ updateSkill model i =
     else
       updatedDriverSkill
 
+getRE : Float -> String
+getRE newFloat =
+  let
+    re = List.head riskEvents
+  in
+    case re of
+      Just some ->
+        Tuple.second some
+      Nothing ->
+        "Nothing"
+
+        
 -- SUBSCRIPTIONS
 
 
@@ -132,6 +160,10 @@ view model =
       ]
       , div []
         [ p [] [ text <| "Random " ++ (toString model.randValue) ]
+      ]
+      , div []
+        [ text <| "Risk Event: " ++ (toString model.riskEvent)
+        , button [ onClick RandRE ] [ text "change"]
       ]
     ]
 
