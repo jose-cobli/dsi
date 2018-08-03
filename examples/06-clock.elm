@@ -89,7 +89,6 @@ type alias Model =
   , score: Float
   , x: Int
   , y: Int
-  , sliderCanMove: Bool
   }
 
 init : (Model, Cmd Msg)
@@ -103,7 +102,6 @@ init =
     , randGauss = -1.0
     , x = 0
     , y = 0
-    , sliderCanMove = True
     }
   , Cmd.none
   )
@@ -143,7 +141,6 @@ type Msg
   | IncrementScore
   | DecrementScore
   | Position Int Int
-  | ToggleSlider
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -169,8 +166,6 @@ update msg model =
       ( { model | score = driverScore model.score [lowAcc, highAcc, highAcc, highAcc] }, Cmd.none )
     Position x y ->
       ( updateSkillFromSlider model x y, Cmd.none )
-    ToggleSlider ->
-      ( { model | sliderCanMove = not model.sliderCanMove }, Cmd.none )
 
 
 updateSkill : Model -> Float -> Float
@@ -187,8 +182,7 @@ updateSkill model i =
 
 
 updateSkillFromSlider model x y =
-  if model.sliderCanMove
-  && x >= slider.x0 && x <= slider.x1
+  if x >= slider.x0 && x <= slider.x1
   && y >= slider.y0 && y <= slider.y1 then
     { model | x = x, y = y, driverSkill = x / (toFloat slider.x1) * 100 }
   else
@@ -205,8 +199,13 @@ getRE newFloat =
 
 closest newFloat sofar next =
   let
-      minDistSofar = abs <| newFloat - (Tuple.first sofar)
-      distNext = abs <| newFloat - (Tuple.first next)
+      minDistSofar =
+        newFloat - (Tuple.first sofar)
+        |> abs
+
+      distNext =
+        newFloat - (Tuple.first next)
+        |> abs
   in
       if minDistSofar < distNext then
         sofar
@@ -224,7 +223,8 @@ subscriptions model =
   Sub.batch
     [ Time.every second Tick
     , Time.every second Rand
-    , Mouse.moves (\{x, y} -> Position x y)
+    , Mouse.clicks (\{x, y} -> Position x y)
+    -- , Mouse.moves (\{x, y} -> Position x y)
     ]
 
 
@@ -273,12 +273,10 @@ view model =
             , ("height", toString (slider.y1 - slider.y0) ++ "px")
             ]
         ]
-        [ p [] [ text <| toString model.sliderCanMove ]
-        , svg
+        [ svg
           [ viewBox "0 0 100% 30%"
           , width "100%"
           , height "100%"
-          , onClick ToggleSlider
           ]
           [ defs []
             [ linearGradient [ id "grad1", x1 "0%", y1 "0%", x2 "100%", y2 "0%" ]
