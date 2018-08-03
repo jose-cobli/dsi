@@ -9,6 +9,7 @@ import Mouse
 -- import Keyboard
 import Random
 import Random.Float exposing (normal)
+import Debug exposing (log)
 
 
 main : Program Never Model Msg
@@ -19,33 +20,80 @@ main =
     , update = update
     , subscriptions = subscriptions
     }
+    
+    
+-- Types
+
+type alias RiskEvent =
+  {
+    event_type: String,
+    event_weight: Float
+  }
+  
+-- Funcs
+
+tripScore: List RiskEvent -> Int -> Float -> Float
+tripScore risk_events tripInSecs distAdjustCoeff =
+  let
+    weights = List.map (\e -> e.event_weight) risk_events
+  in
+    let sum = List.foldr (+) 0.0 weights
+    in (e ^ ( -sum / (toFloat tripInSecs * distAdjustCoeff) )) * 100
+    
+    
+updateDriverScore: Float -> Float -> Float -> Float -> Float -> Float
+updateDriverScore oldScore newScore tripDistInKm movingAvgCoeff maxAlpha =
+  let
+    alpha = Basics.min (movingAvgCoeff * (logBase e (tripDistInKm + e))) maxAlpha
+  in
+    log (String.concat ["alpha ",  (toString alpha)])
+    log (String.concat ["dist log ",  (toString (logBase e (tripDistInKm + e)))])
+    log (String.concat ["new ",  (toString ((1 - alpha) * oldScore + alpha * newScore))])
+    (1 - alpha) * oldScore + alpha * newScore
 
 
+-- DriverScore
+
+distanceAdjustmentCoefficient = 0.0023
+movingAverageCoefficient = 0.015
+maximumAverageCoefficient = 0.2
+
+baseDuration = 1800 -- 30min
+baseKm = 50 -- 50km
+
+driverScore: Float -> List RiskEvent -> Float
+driverScore oldScore riskEvents =
+  let
+    tripS = tripScore riskEvents baseDuration distanceAdjustmentCoefficient
+  in
+    log (String.concat ["ts ", (toString tripS)])
+    updateDriverScore oldScore tripS baseKm movingAverageCoefficient maximumAverageCoefficient
+
+
+highAcc = RiskEvent "HardAcc" 1.0
+midAcc = RiskEvent "MidAcc" 0.415
+lowAcc = RiskEvent "LowAcc" 0.125
 
 -- MODEL
 
 
-type alias Model = 
+type alias Model =
   { time: Time
-  , x: Int
-  , y: Int
-  , onoff: Bool
   , driverSkill: Float
   , randValue: Float
   , riskEvent: String
   , randGauss: Float
+  , score: Float
   }
 
 init : (Model, Cmd Msg)
 init =
   (
     { time = 0
-    , x = 0
-    , y = 0
-    , onoff = False
-    , driverSkill = 10.0
+    , driverSkill = 50.0
     , randValue = 0.0
     , riskEvent = "Nothing"
+    , score = 50.0
     , randGauss = -1.0
     }
   , Cmd.none
@@ -67,14 +115,14 @@ gaussStdDev = 0.1
 
 type Msg
   = Tick Time
-  | Position Int Int
-  | OnOff
   | IncrementSkill
   | DecrementSkill
   | Rand Time
   | NewValue Float
   | RandRE
   | NewRE Float
+  | IncrementScore
+  | DecrementScore
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -82,10 +130,6 @@ update msg model =
   case msg of
     Tick newTime ->
       ( { model | time = newTime }, Cmd.none)
-    Position x y ->
-      ( { model | x = x, y = y }, Cmd.none)
-    OnOff ->
-      ( { model | onoff = not model.onoff }, Cmd.none)
     DecrementSkill ->
       ( { model | driverSkill = updateSkill model -1 }, Cmd.none )
     IncrementSkill ->
@@ -98,6 +142,10 @@ update msg model =
       ( model, Random.generate NewRE (normal (model.driverSkill / 100.0) gaussStdDev) )
     NewRE newFloat ->
       ( { model | riskEvent = getRE newFloat, randGauss = newFloat }, Cmd.none )
+    IncrementScore ->
+      ( { model | score = driverScore model.score [lowAcc] }, Cmd.none )
+    DecrementScore ->
+      ( { model | score = driverScore model.score [lowAcc, highAcc, highAcc, highAcc] }, Cmd.none )
 
 updateSkill : Model -> Float -> Float
 updateSkill model i =
@@ -139,7 +187,6 @@ subscriptions model =
   Sub.batch
     [ Time.every second Tick
     , Time.every second Rand
-    , Mouse.moves (\{x, y} -> Position x y)
     ]
 
 
@@ -150,7 +197,7 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
   let
-    mstyle = 
+    mstyle =
       style
         [ ("position", "relative")
         , ("backgroundColor", "blue")
@@ -160,18 +207,20 @@ view model =
         ]
   in
     div []
-      [ div [ mstyle ] []
-      , p [] [ text <| "Model: " ++ toString model ]
-      , p [] [ text <| "rel pos: " ++ relpos model ]
+      [ p [] [ text <| "Model: " ++ toString model ]
       , p [] [ text <| "inSeconds: " ++ (toString <| Basics.round <| Time.inSeconds model.time) ]
-      , button [ onClick OnOff ] [ text ("Turn me " ++ btnstate model) ]
       , div []
         [ text <| "Driver Skill " ++ (toString model.driverSkill)
         , button [ onClick IncrementSkill ] [ text "+"]
         , button [ onClick DecrementSkill ] [ text "-"]
       ]
       , div []
-        [ p [] [ text <| "Random: " ++ (toString model.randValue) ]
+        [ text <| "Driver Score " ++ (toString model.score)
+        , button [ onClick IncrementScore ] [ text "better"]
+        , button [ onClick DecrementScore ] [ text "worse"]
+        ]
+      , div []
+        [ p [] [ text <| "Random " ++ (toString model.randValue) ]
         , p [] [ text <| "Random Gauss: " ++ (toString model.randGauss) ]
         ]
       , div []
@@ -179,26 +228,3 @@ view model =
         , button [ onClick RandRE ] [ text "change"]
       ]
     ]
-
-
-
--- AUX
-
-
-relpos : Model -> String
-relpos model =
-  let
-    rp =
-      { x = model.x - 100
-      , y = model.y - 100
-      }
-  in
-    toString rp
-
-
-btnstate : Model -> String
-btnstate model =
-  if model.onoff then
-    "off"
-  else
-    "on"
