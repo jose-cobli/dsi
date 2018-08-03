@@ -264,14 +264,26 @@ view model =
         ]
       ] (formatTrips model.tripHistory))
       [ h2 [] [ text <| "Driver Skill " ++ (toString (100.0 - model.driverSkill)) ]
+      , div [ style [ ("position", "fixed"), ("top", toString (slider.y0 - 170) ++ "px") ] ]
+        [ h2 [] [ text "As variáveis da fórmula do Driver Score" ]
+        , ul []
+          [ li [] [ text "idf_e é o peso do evento"]
+          , li [] [ text "K_1 é uma constante de ajuste de tempo"]
+          , li [] [ text "t é a o tempo da trip"]
+          , li [] [ text "dist é a distância percorrida"]
+          , li [] [ text "alpha é uma constante de ajuste da média"]
+          ]
+        ]
       , div [ style [ ("position", "fixed"), ("top", toString slider.y1 ++ "px") ] ]
         [ h2 [] [ text "Próximos passos" ]
         , ul []
           [ li [] [ text "Mostrar quantidades de eventos por trip (e quais ocorreram)"]
           , li [] [ text "Quanto tempo eu demoro até chegar em uma nota boa?"]
+          , li [] [ text "Design!!"]
           ]
         ]
-      ])
+      ]
+      )
 
 
 maybeLine : Model -> Svg.Svg Msg
