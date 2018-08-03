@@ -3,10 +3,11 @@ import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 -- import Svg exposing (..)
 -- import Svg.Attributes exposing (..)
-import Css exposing (..)
+-- import Css exposing (..)
 import Time exposing (Time, second)
-import Mouse 
-import Keyboard
+import Mouse
+-- import Keyboard
+import Random
 
 
 main : Program Never Model Msg
@@ -29,6 +30,7 @@ type alias Model =
   , y: Int
   , onoff: Bool
   , driverSkill: Int
+  , randValue: Float
   }
 
 init : (Model, Cmd Msg)
@@ -39,6 +41,7 @@ init =
     , y = 0
     , onoff = False
     , driverSkill = 50
+    , randValue = 0.0
     }
     , Cmd.none
    )
@@ -54,6 +57,8 @@ type Msg
   | OnOff
   | IncrementSkill
   | DecrementSkill
+  | Rand
+  | NewValue Float
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -69,6 +74,10 @@ update msg model =
       ( { model | driverSkill = updateSkill model -1 }, Cmd.none )
     IncrementSkill ->
       ( { model | driverSkill = updateSkill model 1 }, Cmd.none )
+    Rand ->
+      ( model, Random.generate NewValue (Random.float 0.0 1.0) )
+    NewValue newFloat ->
+      ( { model | randValue = newFloat }, Cmd.none )
 
 updateSkill : Model -> Int -> Int
 updateSkill model i =
@@ -119,6 +128,10 @@ view model =
         [ text <| "Driver Skill " ++ (toString model.driverSkill)
         , button [ onClick IncrementSkill ] [ text "+"]
         , button [ onClick DecrementSkill ] [ text "-"]
+      ]
+      , div []
+        [ p [] [ text <| "Random " ++ (toString model.randValue) ]
+        , button [ onClick Rand ] [ text "new"]
       ]
     ]
 
